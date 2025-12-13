@@ -1,5 +1,3 @@
-"""Functions for audio loading and preprocessing."""
-
 import logging
 from pathlib import Path
 
@@ -7,7 +5,7 @@ import librosa
 import numpy as np
 import numpy.typing as npt
 
-from music_intelligence.config.settings import AudioConfig, DEFAULT_AUDIO_CONFIG
+from config import SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -15,15 +13,9 @@ logger = logging.getLogger(__name__)
 def load_audio(
     path: Path | str,
     sample_rate: int | None = None,
-    config: AudioConfig | None = None,
 ) -> tuple[npt.NDArray[np.float32], int]:
     """Loads an audio file and converts it to mono."""
-    if config is None:
-        config = DEFAULT_AUDIO_CONFIG
-
-    target_sample_rate = (
-        sample_rate if sample_rate is not None else config.sample_rate
-    )
+    target_sample_rate = sample_rate if sample_rate is not None else SAMPLE_RATE
 
     audio_path = Path(path)
     if not audio_path.exists():

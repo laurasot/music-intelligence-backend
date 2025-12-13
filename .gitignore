@@ -67,5 +67,5 @@ Thumbs.db
 
 # Project specific
 .cursor/rules/
-scripts/
+*.egg-info/
 

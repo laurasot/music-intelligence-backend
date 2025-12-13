@@ -1,16 +1,10 @@
-"""Extraction of basic features: tempo, beat, and time signature."""
-
 import logging
 
 import librosa
 import numpy as np
 import numpy.typing as npt
 
-from music_intelligence.config.settings import (
-    DEFAULT_AUDIO_CONFIG,
-    DEFAULT_FEATURE_CONFIG,
-    FeatureExtractionConfig,
-)
+from config import HOP_LENGTH, N_FFT
 
 logger = logging.getLogger(__name__)
 
@@ -18,25 +12,20 @@ logger = logging.getLogger(__name__)
 def extract_tempo(
     audio: npt.NDArray[np.float32],
     sample_rate: int,
-    config: FeatureExtractionConfig | None = None,
 ) -> float:
     """Extracts tempo (BPM) from an audio signal."""
-    if config is None:
-        config = DEFAULT_FEATURE_CONFIG
-
     try:
         tempo, _ = librosa.beat.tempo(
             y=audio,
             sr=sample_rate,
-            hop_length=DEFAULT_AUDIO_CONFIG.hop_length,
+            hop_length=HOP_LENGTH,
             start_bpm=120.0,
             std_bpm=1.0,
             ac_size=8.0,
-            max_tempo=config.tempo_range[1],
+            max_tempo=200.0,
         )
 
         tempo_value = float(tempo[0]) if isinstance(tempo, np.ndarray) else float(tempo)
-
         logger.debug(f"Tempo extracted: {tempo_value:.2f} BPM")
         return tempo_value
 
@@ -49,30 +38,23 @@ def extract_beat_times(
     audio: npt.NDArray[np.float32],
     sample_rate: int,
     tempo: float | None = None,
-    config: FeatureExtractionConfig | None = None,
 ) -> npt.NDArray[np.float64]:
     """Extracts beat times from an audio signal."""
-    if config is None:
-        config = DEFAULT_FEATURE_CONFIG
-
     try:
         if tempo is None:
-            tempo = extract_tempo(audio, sample_rate, config)
-
-        tempo_bpm = np.array([tempo])
+            tempo = extract_tempo(audio, sample_rate)
 
         beats = librosa.beat.beat_track(
             y=audio,
             sr=sample_rate,
-            hop_length=DEFAULT_AUDIO_CONFIG.hop_length,
+            hop_length=HOP_LENGTH,
             start_bpm=tempo,
             std_bpm=1.0,
-            trim=config.beat_track_trim,
+            trim=True,
             units="time",
         )[1]
 
         beat_times = np.array(beats, dtype=np.float64)
-
         logger.debug(f"Beats extracted: {len(beat_times)} beats")
         return beat_times
 
@@ -110,7 +92,7 @@ def estimate_time_signature(
         onset_frames = librosa.onset.onset_detect(
             y=audio,
             sr=sample_rate,
-            hop_length=DEFAULT_AUDIO_CONFIG.hop_length,
+            hop_length=HOP_LENGTH,
             units="time",
         )
 
@@ -142,7 +124,6 @@ def estimate_time_signature(
                 best_candidate = candidate
 
         time_signature = (best_candidate, 4)
-
         logger.debug(f"Time signature estimated: {time_signature[0]}/{time_signature[1]}")
         return time_signature
 
@@ -151,22 +132,87 @@ def estimate_time_signature(
         return (4, 4)
 
 
-def extract_basic_features(
+def extract_energy(
+    audio: npt.NDArray[np.float32],
+) -> float:
+    """Calculates the average energy of an audio signal."""
+    root_mean_square = librosa.feature.rms(
+        y=audio,
+        frame_length=N_FFT,
+        hop_length=HOP_LENGTH,
+    )[0]
+
+    energy = float(np.mean(root_mean_square))
+    logger.debug(f"Energy calculated: {energy:.4f}")
+    return energy
+
+
+def extract_brightness(
     audio: npt.NDArray[np.float32],
     sample_rate: int,
-    config: FeatureExtractionConfig | None = None,
-) -> dict[str, float | tuple[int, int] | npt.NDArray[np.float64]]:
-    """Extracts all basic features (tempo, beat, time signature) from an audio signal."""
-    if config is None:
-        config = DEFAULT_FEATURE_CONFIG
+) -> float:
+    """Calculates the spectral brightness of an audio signal."""
+    spectral_centroid = librosa.feature.spectral_centroid(
+        y=audio,
+        sr=sample_rate,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+    )[0]
 
-    tempo = extract_tempo(audio, sample_rate, config)
-    beat_times = extract_beat_times(audio, sample_rate, tempo, config)
+    max_freq = sample_rate / 2.0
+    brightness = float(np.mean(spectral_centroid) / max_freq)
+    logger.debug(f"Brightness calculated: {brightness:.4f}")
+    return brightness
+
+
+def extract_spectral_density(
+    audio: npt.NDArray[np.float32],
+    sample_rate: int,
+) -> float:
+    """Calculates the spectral density of an audio signal."""
+    spectral_rolloff = librosa.feature.spectral_rolloff(
+        y=audio,
+        sr=sample_rate,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+        roll_percent=0.95,
+    )[0]
+
+    max_freq = sample_rate / 2.0
+    rolloff_normalized = np.mean(spectral_rolloff) / max_freq
+
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(
+        y=audio,
+        sr=sample_rate,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+    )[0]
+
+    bandwidth_normalized = np.mean(spectral_bandwidth) / max_freq
+    density = float((rolloff_normalized + bandwidth_normalized) / 2.0)
+    logger.debug(f"Spectral density calculated: {density:.4f}")
+    return density
+
+
+def extract_all_features(
+    audio: npt.NDArray[np.float32],
+    sample_rate: int,
+) -> dict:
+    """Extracts all features from an audio signal."""
+    tempo = extract_tempo(audio, sample_rate)
+    beat_times = extract_beat_times(audio, sample_rate, tempo)
     time_signature = estimate_time_signature(audio, sample_rate, tempo, beat_times)
+
+    energy = extract_energy(audio)
+    brightness = extract_brightness(audio, sample_rate)
+    spectral_density = extract_spectral_density(audio, sample_rate)
 
     return {
         "tempo": tempo,
         "beat_times": beat_times,
         "time_signature": time_signature,
+        "energy": energy,
+        "brightness": brightness,
+        "spectral_density": spectral_density,
     }
 

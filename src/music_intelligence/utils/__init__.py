@@ -1,2 +1,0 @@
-"""Utilidades generales del proyecto."""
-

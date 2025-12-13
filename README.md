@@ -1,53 +1,31 @@
 # Music Intelligence Backend
 
-Professional music analysis system that extracts detailed information from audio files.
+Extracts musical features from audio files: tempo, beats, time signature, energy, brightness, and spectral density.
 
 ## Installation
 
 ```bash
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
 
-# Install dependencies
-pip install -e ".[dev]"
+pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Extract basic and global features
-
 ```bash
-python scripts/extract_features.py <audio_path> -o output.json
+python scripts/extract_features.py audio_file.wav -o output.json
 ```
 
-The script extracts:
-- **Basic features**: tempo (BPM), beats, approximate time signature
-- **Global features**: energy, spectral brightness, spectral density
-
-## Project Structure
+## Structure
 
 ```
-src/music_intelligence/
-├── config/          # Configuration and constants
-├── dsp/             # Digital signal processing
-├── features/        # Feature extraction
-└── utils/           # General utilities
+src/
+├── config.py      # Constants (sample rate, etc.)
+├── audio.py       # Load audio files
+└── features.py    # Extract all features
+
+scripts/
+└── extract_features.py  # Main script
 ```
-
-## Development
-
-```bash
-# Format code
-black src/ scripts/
-
-# Sort imports
-isort src/ scripts/
-
-# Linter
-ruff check src/ scripts/
-
-# Tests
-pytest
-```
-
