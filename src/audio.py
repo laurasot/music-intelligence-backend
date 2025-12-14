@@ -22,11 +22,11 @@ def load_audio(
         raise FileNotFoundError(f"Audio file not found: {path}")
 
     try:
-        audio, loaded_sample_rate = librosa.load(
+        audio, loaded_sample_rate = librosa.load( #carga para procesar con librosa
             str(audio_path),
             sr=target_sample_rate,
             mono=True,
-            res_type="kaiser_best",
+            res_type="kaiser_best", #algoritmo de resampling
         )
         audio = audio.astype(np.float32)
 

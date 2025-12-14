@@ -5,6 +5,8 @@ import logging
 import sys
 from pathlib import Path
 
+import numpy as np
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from audio import load_audio
@@ -15,6 +17,19 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def get_array_metadata(array: np.ndarray) -> dict:
+    """Generates metadata for a numpy array (shape, statistics)."""
+    return {
+        "shape": list(array.shape),
+        "dtype": str(array.dtype),
+        "mean": float(np.mean(array)),
+        "std": float(np.std(array)),
+        "min": float(np.min(array)),
+        "max": float(np.max(array)),
+        "size": int(array.size),
+    }
 
 
 def main() -> int:
@@ -60,9 +75,29 @@ def main() -> int:
                 "denominator": int(features["time_signature"][1]),
             },
             "num_beats": int(len(features["beat_times"])),
+            "num_onsets": int(len(features["onset_times"])),
             "energy": features["energy"],
             "brightness": features["brightness"],
             "spectral_density": features["spectral_density"],
+            "mfccs": get_array_metadata(features["mfccs"]),
+            "log_magnitude_spectrogram": get_array_metadata(
+                features["log_magnitude_spectrogram"]
+            ),
+            "cqt": get_array_metadata(features["cqt"]),
+            "note_durations": {
+                "durations_seconds": features["note_durations"]["durations"],
+                "mean_seconds": features["note_durations"]["mean"],
+                "median_seconds": features["note_durations"]["median"],
+                "std_seconds": features["note_durations"]["std"],
+                "min_seconds": features["note_durations"]["min"],
+                "max_seconds": features["note_durations"]["max"],
+                "percentile_25_seconds": features["note_durations"]["percentile_25"],
+                "percentile_75_seconds": features["note_durations"]["percentile_75"],
+                "long_notes_count": features["note_durations"]["long_notes_count"],
+                "short_notes_count": features["note_durations"]["short_notes_count"],
+                "long_to_short_ratio": features["note_durations"]["long_to_short_ratio"],
+                "threshold_seconds": features["note_durations"]["threshold_seconds"],
+            },
         }
 
         output_json = json.dumps(results, indent=2, ensure_ascii=False)
