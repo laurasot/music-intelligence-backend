@@ -9,8 +9,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from audio import load_audio
-from features import extract_all_features
+from audio_processing.audio_loader import load_audio
+from audio_processing.feature_extraction import extract_all_features
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,6 +97,17 @@ def main() -> int:
                 "short_notes_count": features["note_durations"]["short_notes_count"],
                 "long_to_short_ratio": features["note_durations"]["long_to_short_ratio"],
                 "threshold_seconds": features["note_durations"]["threshold_seconds"],
+            },
+            "rhythm_analysis": {
+                "swing": features["rhythm_analysis"]["swing"],
+                "syncopation": features["rhythm_analysis"]["syncopation"],
+                "micro_timing": {
+                    "mean_deviation_ms": features["rhythm_analysis"]["micro_timing"]["mean_deviation_ms"],
+                    "std_deviation_ms": features["rhythm_analysis"]["micro_timing"]["std_deviation_ms"],
+                    "max_early_ms": features["rhythm_analysis"]["micro_timing"]["max_early_ms"],
+                    "max_late_ms": features["rhythm_analysis"]["micro_timing"]["max_late_ms"],
+                    "deviations_ms": features["rhythm_analysis"]["micro_timing"]["deviations_ms"],
+                },
             },
         }
 

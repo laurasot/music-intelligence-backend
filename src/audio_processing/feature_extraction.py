@@ -4,7 +4,8 @@ import librosa
 import numpy as np
 import numpy.typing as npt
 
-from config import HOP_LENGTH, N_FFT
+from audio_processing.config import HOP_LENGTH, N_FFT
+from audio_processing.rhythm_analysis import analyze_rhythm
 
 logger = logging.getLogger(__name__)
 
@@ -370,6 +371,9 @@ def extract_all_features(
     cqt = extract_cqt(audio, sample_rate)
 
     note_durations = extract_note_durations(onset_times)
+    rhythm_analysis = analyze_rhythm(
+        onset_times, beat_times, tempo, time_signature
+    )
 
     return {
         "tempo": tempo,
@@ -383,5 +387,6 @@ def extract_all_features(
         "log_magnitude_spectrogram": log_magnitude_spectrogram,
         "cqt": cqt,
         "note_durations": note_durations,
+        "rhythm_analysis": rhythm_analysis,
     }
 

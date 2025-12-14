@@ -5,7 +5,7 @@ import librosa
 import numpy as np
 import numpy.typing as npt
 
-from config import SAMPLE_RATE
+from audio_processing.config import SAMPLE_RATE
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,11 @@ def load_audio(
         raise FileNotFoundError(f"Audio file not found: {path}")
 
     try:
-        audio, loaded_sample_rate = librosa.load( #carga para procesar con librosa
+        audio, loaded_sample_rate = librosa.load(
             str(audio_path),
             sr=target_sample_rate,
             mono=True,
-            res_type="kaiser_best", #algoritmo de resampling
+            res_type="kaiser_best",
         )
         audio = audio.astype(np.float32)
 
@@ -66,4 +66,3 @@ def normalize_audio(
         logger.debug(f"Audio clipped during normalization (max: {max_val:.2f})")
 
     return normalized.astype(np.float32)
-
