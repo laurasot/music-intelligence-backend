@@ -15,12 +15,11 @@ def extract_tempo(
 ) -> float:
     """Extracts tempo (BPM) from an audio signal."""
     try:
-        tempo, _ = librosa.beat.tempo(
+        tempo = librosa.beat.tempo(
             y=audio,
             sr=sample_rate,
             hop_length=HOP_LENGTH,
             start_bpm=120.0,
-            std_bpm=1.0,
             ac_size=8.0,
             max_tempo=200.0,
         )
@@ -44,15 +43,15 @@ def extract_beat_times(
         if tempo is None:
             tempo = extract_tempo(audio, sample_rate)
 
-        beats = librosa.beat.beat_track(
+        _, beats = librosa.beat.beat_track(
             y=audio,
             sr=sample_rate,
             hop_length=HOP_LENGTH,
             start_bpm=tempo,
-            std_bpm=1.0,
+            tightness=100,
             trim=True,
             units="time",
-        )[1]
+        )
 
         beat_times = np.array(beats, dtype=np.float64)
         logger.debug(f"Beats extracted: {len(beat_times)} beats")
