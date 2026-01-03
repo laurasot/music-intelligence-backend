@@ -7,10 +7,59 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Import modules directly to avoid __init__.py import issues
+import importlib.util
+src_path = Path(__file__).parent.parent / "src"
 
-from audio_processing.audio_loader import load_audio
-from audio_processing.feature_extraction import extract_all_features
+# Load config first (needed by audio_loader)
+spec_config = importlib.util.spec_from_file_location(
+    "config",
+    src_path / "audio_processing" / "config.py"
+)
+config_module = importlib.util.module_from_spec(spec_config)
+spec_config.loader.exec_module(config_module)
+
+# Make config available as audio_processing.config
+if "audio_processing" not in sys.modules:
+    import types
+    audio_processing_pkg = types.ModuleType("audio_processing")
+    sys.modules["audio_processing"] = audio_processing_pkg
+sys.modules["audio_processing.config"] = config_module
+
+# Load rhythm_analysis (needed by feature_extraction)
+spec_rhythm_analysis = importlib.util.spec_from_file_location(
+    "rhythm_analysis",
+    src_path / "audio_processing" / "rhythm_analysis.py"
+)
+rhythm_analysis_module = importlib.util.module_from_spec(spec_rhythm_analysis)
+spec_rhythm_analysis.loader.exec_module(rhythm_analysis_module)
+sys.modules["audio_processing.rhythm_analysis"] = rhythm_analysis_module
+
+# Load audio_loader
+spec_loader = importlib.util.spec_from_file_location(
+    "audio_loader",
+    src_path / "audio_processing" / "audio_loader.py"
+)
+audio_loader = importlib.util.module_from_spec(spec_loader)
+spec_loader.loader.exec_module(audio_loader)
+load_audio = audio_loader.load_audio
+
+# Load feature_extraction
+spec_features = importlib.util.spec_from_file_location(
+    "feature_extraction",
+    src_path / "audio_processing" / "feature_extraction.py"
+)
+feature_extraction = importlib.util.module_from_spec(spec_features)
+spec_features.loader.exec_module(feature_extraction)
+extract_all_features = feature_extraction.extract_all_features
+
+# Load rhythm interpreter
+spec_rhythm = importlib.util.spec_from_file_location(
+    "rhythm_interpreter",
+    src_path / "rhythmic_analysis" / "rhythm_interpreter.py"
+)
+rhythm_interpreter = importlib.util.module_from_spec(spec_rhythm)
+spec_rhythm.loader.exec_module(rhythm_interpreter)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +91,12 @@ def main() -> int:
         "--output",
         type=str,
         default=None,
-        help="Path to the output JSON file (if not specified, prints to stdout)",
+        help="Path to the output JSON file (default: <audio_name>_features.json)",
+    )
+    parser.add_argument(
+        "--stdout",
+        action="store_true",
+        help="Print results to stdout instead of saving to file",
     )
     parser.add_argument(
         "--verbose",
@@ -109,17 +163,23 @@ def main() -> int:
                     "deviations_ms": features["rhythm_analysis"]["micro_timing"]["deviations_ms"],
                 },
             },
+            "rhythm_interpretation": rhythm_interpreter.rhythm_interpretation_to_dict(
+                rhythm_interpreter.interpret_rhythm(features["rhythm_analysis"])
+            ),
         }
 
         output_json = json.dumps(results, indent=2, ensure_ascii=False)
 
-        if args.output:
-            output_path = Path(args.output)
+        if args.stdout:
+            print(output_json)
+        else:
+            if args.output:
+                output_path = Path(args.output)
+            else:
+                output_path = audio_path.with_name(f"{audio_path.stem}_features.json")
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(output_json, encoding="utf-8")
             logger.info(f"Results saved to: {output_path}")
-        else:
-            print(output_json)
 
         return 0
 

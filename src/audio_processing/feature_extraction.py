@@ -352,6 +352,135 @@ def extract_cqt(
         raise
 
 
+def extract_harmonic_percussive_ratio(
+    audio: npt.NDArray[np.float32],
+    sample_rate: int,
+) -> dict[str, float]:
+    """Separates harmonic and percussive components and calculates their ratio."""
+    try:
+        harmonic, percussive = librosa.effects.hpss(
+            y=audio,
+            margin=(1.0, 1.0),
+        )
+
+        harmonic_energy = float(np.mean(librosa.feature.rms(y=harmonic)[0]))
+        percussive_energy = float(np.mean(librosa.feature.rms(y=percussive)[0]))
+
+        total_energy = harmonic_energy + percussive_energy
+        if total_energy > 0:
+            harmonic_ratio = harmonic_energy / total_energy
+            percussive_ratio = percussive_energy / total_energy
+        else:
+            harmonic_ratio = 0.5
+            percussive_ratio = 0.5
+
+        logger.debug(
+            f"Harmonic/percussive ratio: harmonic={harmonic_ratio:.3f}, "
+            f"percussive={percussive_ratio:.3f}"
+        )
+
+        return {
+            "harmonic_ratio": harmonic_ratio,
+            "percussive_ratio": percussive_ratio,
+            "harmonic_energy": harmonic_energy,
+            "percussive_energy": percussive_energy,
+        }
+
+    except Exception as e:
+        logger.error(f"Error extracting harmonic/percussive ratio: {e}")
+        raise
+
+
+def extract_zero_crossing_rate(
+    audio: npt.NDArray[np.float32],
+    sample_rate: int,
+) -> float:
+    """Calculates zero crossing rate as a measure of noisiness."""
+    try:
+        zcr = librosa.feature.zero_crossing_rate(
+            y=audio,
+            frame_length=N_FFT,
+            hop_length=HOP_LENGTH,
+        )[0]
+
+        mean_zcr = float(np.mean(zcr))
+        logger.debug(f"Zero crossing rate calculated: {mean_zcr:.4f}")
+        return mean_zcr
+
+    except Exception as e:
+        logger.error(f"Error extracting zero crossing rate: {e}")
+        raise
+
+
+def extract_spectral_contrast(
+    audio: npt.NDArray[np.float32],
+    sample_rate: int,
+) -> dict[str, float]:
+    """Extracts spectral contrast to measure tone color richness."""
+    try:
+        contrast = librosa.feature.spectral_contrast(
+            y=audio,
+            sr=sample_rate,
+            n_fft=N_FFT,
+            hop_length=HOP_LENGTH,
+        )
+
+        mean_contrast = float(np.mean(contrast))
+        std_contrast = float(np.std(contrast))
+        max_contrast = float(np.max(contrast))
+
+        logger.debug(
+            f"Spectral contrast: mean={mean_contrast:.2f}, "
+            f"std={std_contrast:.2f}, max={max_contrast:.2f}"
+        )
+
+        return {
+            "mean_contrast": mean_contrast,
+            "std_contrast": std_contrast,
+            "max_contrast": max_contrast,
+        }
+
+    except Exception as e:
+        logger.error(f"Error extracting spectral contrast: {e}")
+        raise
+
+
+def extract_mfcc_statistics(
+    mfccs: npt.NDArray[np.float32],
+) -> dict[str, float]:
+    """Extracts statistical features from MFCCs for tone color characterization."""
+    try:
+        # First MFCC (c0) represents overall energy
+        mfcc_0 = mfccs[0, :]
+        mfcc_0_mean = float(np.mean(mfcc_0))
+        mfcc_0_std = float(np.std(mfcc_0))
+
+        # Higher MFCCs capture spectral shape
+        mfcc_high = mfccs[1:, :]
+        mfcc_high_mean = float(np.mean(mfcc_high))
+        mfcc_high_std = float(np.std(mfcc_high))
+
+        # Variance in MFCCs indicates tone color complexity
+        mfcc_variance = float(np.var(mfccs))
+
+        logger.debug(
+            f"MFCC statistics: c0_mean={mfcc_0_mean:.2f}, "
+            f"high_mean={mfcc_high_mean:.2f}, variance={mfcc_variance:.2f}"
+        )
+
+        return {
+            "mfcc_0_mean": mfcc_0_mean,
+            "mfcc_0_std": mfcc_0_std,
+            "mfcc_high_mean": mfcc_high_mean,
+            "mfcc_high_std": mfcc_high_std,
+            "mfcc_variance": mfcc_variance,
+        }
+
+    except Exception as e:
+        logger.error(f"Error extracting MFCC statistics: {e}")
+        raise
+
+
 def extract_all_features(
     audio: npt.NDArray[np.float32],
     sample_rate: int,
@@ -370,6 +499,12 @@ def extract_all_features(
     log_magnitude_spectrogram = extract_log_magnitude_spectrogram(audio, sample_rate)
     cqt = extract_cqt(audio, sample_rate)
 
+    # Tone color features
+    harmonic_percussive = extract_harmonic_percussive_ratio(audio, sample_rate)
+    zero_crossing_rate = extract_zero_crossing_rate(audio, sample_rate)
+    spectral_contrast = extract_spectral_contrast(audio, sample_rate)
+    mfcc_stats = extract_mfcc_statistics(mfccs)
+
     note_durations = extract_note_durations(onset_times)
     rhythm_analysis = analyze_rhythm(
         onset_times, beat_times, tempo, time_signature
@@ -386,6 +521,10 @@ def extract_all_features(
         "mfccs": mfccs,
         "log_magnitude_spectrogram": log_magnitude_spectrogram,
         "cqt": cqt,
+        "harmonic_percussive": harmonic_percussive,
+        "zero_crossing_rate": zero_crossing_rate,
+        "spectral_contrast": spectral_contrast,
+        "mfcc_statistics": mfcc_stats,
         "note_durations": note_durations,
         "rhythm_analysis": rhythm_analysis,
     }
