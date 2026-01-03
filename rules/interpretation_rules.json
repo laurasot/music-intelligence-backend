@@ -1,0 +1,265 @@
+{
+  "swing": {
+    "field": "swing_ratio",
+    "has_swing_field": "has_swing",
+    "thresholds": [
+      {
+        "max": 1.1,
+        "level": "straight",
+        "description": "No swing detected. Straight, even rhythmic subdivisions.",
+        "condition": "has_swing == false"
+      },
+      {
+        "max": 1.3,
+        "level": "light",
+        "description": "Light swing feel. Subtle rhythmic lilt."
+      },
+      {
+        "max": 1.5,
+        "level": "moderate",
+        "description": "Moderate swing. Classic jazz-like triplet feel."
+      },
+      {
+        "max": null,
+        "level": "heavy",
+        "description": "Heavy swing. Pronounced shuffle or dotted rhythm feel."
+      }
+    ]
+  },
+  "syncopation": {
+    "field": "syncopation_ratio",
+    "thresholds": [
+      {
+        "max": 0.05,
+        "level": "minimal",
+        "description": "Almost no syncopation. Very straightforward, on-the-beat rhythm."
+      },
+      {
+        "max": 0.15,
+        "level": "low",
+        "description": "Low syncopation. Mostly on-beat with occasional off-beat accents."
+      },
+      {
+        "max": 0.30,
+        "level": "moderate",
+        "description": "Moderate syncopation. Rhythmic interest with off-beat emphasis."
+      },
+      {
+        "max": 0.45,
+        "level": "high",
+        "description": "High syncopation. Frequent off-beat accents create rhythmic tension."
+      },
+      {
+        "max": null,
+        "level": "extreme",
+        "description": "Extreme syncopation. Heavily off-beat, complex rhythmic pattern."
+      }
+    ]
+  },
+  "timing": {
+    "tendency": {
+      "field": "mean_deviation_ms",
+      "thresholds": [
+        {
+          "max": -15,
+          "tendency": "ahead",
+          "description": "slightly ahead of the beat"
+        },
+        {
+          "max": 15,
+          "tendency": "centered",
+          "description": "centered on the beat"
+        },
+        {
+          "max": null,
+          "tendency": "behind",
+          "description": "slightly behind the beat (laid back)"
+        }
+      ]
+    },
+    "feel": {
+      "field": "std_deviation_ms",
+      "thresholds": [
+        {
+          "max": 10,
+          "level": "mechanical",
+          "description_template": "Extremely precise timing, {tendency_desc}. Likely programmed or quantized."
+        },
+        {
+          "max": 30,
+          "level": "tight",
+          "description_template": "Very tight timing, {tendency_desc}. Highly skilled or quantized performance."
+        },
+        {
+          "max": 80,
+          "level": "natural",
+          "description_template": "Natural human timing, {tendency_desc}. Organic feel with subtle variations."
+        },
+        {
+          "max": 150,
+          "level": "loose",
+          "description_template": "Loose timing, {tendency_desc}. Relaxed or intentionally imprecise."
+        },
+        {
+          "max": null,
+          "level": "sloppy",
+          "description_template": "Very loose timing, {tendency_desc}. High variation in note placement."
+        }
+      ]
+    }
+  },
+  "brightness": {
+    "field": "brightness_value",
+    "thresholds": [
+      {
+        "max": 0.15,
+        "level": "dark",
+        "description": "Dark, warm tone color with energy concentrated in lower frequencies."
+      },
+      {
+        "max": 0.25,
+        "level": "warm",
+        "description": "Warm, mellow tone color with balanced low-mid frequency content."
+      },
+      {
+        "max": 0.35,
+        "level": "balanced",
+        "description": "Balanced spectral distribution across frequency range."
+      },
+      {
+        "max": 0.50,
+        "level": "bright",
+        "description": "Bright tone color with significant energy in mid-high frequencies."
+      },
+      {
+        "max": null,
+        "level": "sharp",
+        "description": "Sharp, piercing tone color with strong high-frequency emphasis."
+      }
+    ]
+  },
+  "harmonicity": {
+    "harmonic_field": "harmonic_ratio",
+    "percussive_field": "percussive_ratio",
+    "harmonic_thresholds": [
+      {
+        "min": 0.85,
+        "level": "pure_harmonic",
+        "description": "Predominantly harmonic content. Sustained tones, melodic instruments."
+      },
+      {
+        "min": 0.65,
+        "max": 0.85,
+        "level": "predominantly_harmonic",
+        "description": "Predominantly harmonic with some percussive elements. Melodic focus."
+      }
+    ],
+    "percussive_thresholds": [
+      {
+        "min": 0.85,
+        "level": "pure_percussive",
+        "description": "Almost purely percussive. Sharp attacks, minimal sustain."
+      },
+      {
+        "min": 0.65,
+        "max": 0.85,
+        "level": "predominantly_percussive",
+        "description": "Predominantly percussive content. Rhythmic, transient-heavy."
+      }
+    ],
+    "default_level": "mixed",
+    "default_description": "Mixed harmonic and percussive content. Balanced instrumentation."
+  },
+  "sound_character": {
+    "field": "zero_crossing_rate",
+    "thresholds": [
+      {
+        "min": 0.15,
+        "level": "distorted",
+        "description": "Distorted sound with significant noise content.",
+        "condition": "harmonicity_level not in [pure_percussive, predominantly_percussive]"
+      },
+      {
+        "min": 0.15,
+        "level": "noisy",
+        "description": "Noisy, distorted character with high zero-crossing rate.",
+        "condition": "harmonicity_level in [pure_percussive, predominantly_percussive]"
+      },
+      {
+        "min": 0.08,
+        "max": 0.15,
+        "level": "clean_with_texture",
+        "description": "Clean sound with subtle texture and noise."
+      },
+      {
+        "max": 0.08,
+        "level": "pure",
+        "description": "Pure, clean harmonic sound with minimal noise.",
+        "condition": "harmonicity_level == pure_harmonic"
+      },
+      {
+        "max": 0.08,
+        "level": "clean",
+        "description": "Clean, clear sound with minimal distortion."
+      }
+    ]
+  },
+  "tone_color_quality": {
+    "rules": [
+      {
+        "level": "sweet",
+        "description": "Sweet, warm tone color with simple harmonic content.",
+        "conditions": {
+          "brightness_level": ["dark", "warm"],
+          "mfcc_variance_max": 5000
+        }
+      },
+      {
+        "level": "metallic",
+        "description": "Metallic, bright tone color with complex harmonic structure.",
+        "conditions": {
+          "brightness_level": ["bright", "sharp"],
+          "mfcc_variance_min": 8000
+        }
+      },
+      {
+        "level": "opaque",
+        "description": "Opaque, muffled tone color with dense spectral content.",
+        "conditions": {
+          "brightness_level": ["dark", "warm"],
+          "spectral_density_min": 0.5
+        }
+      },
+      {
+        "level": "bright",
+        "description": "Bright, clear tone color with focused spectral energy.",
+        "conditions": {
+          "brightness_level": ["bright", "sharp"],
+          "spectral_density_max": 0.4
+        }
+      },
+      {
+        "level": "rich",
+        "description": "Rich, complex tone color with full spectral content.",
+        "conditions": {
+          "brightness_level": ["balanced"],
+          "mfcc_variance_min": 6000
+        }
+      },
+      {
+        "level": "thin",
+        "description": "Thin, bright tone color with sparse spectral content.",
+        "conditions": {
+          "brightness_level": ["bright", "sharp"],
+          "spectral_density_max": 0.3
+        }
+      },
+      {
+        "level": "bright",
+        "description": "Clear, balanced tone color.",
+        "default": true
+      }
+    ]
+  }
+}
+
