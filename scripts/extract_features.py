@@ -164,7 +164,10 @@ def main() -> int:
                 },
             },
             "rhythm_interpretation": rhythm_interpreter.rhythm_interpretation_to_dict(
-                rhythm_interpreter.interpret_rhythm(features["rhythm_analysis"])
+                rhythm_interpreter.interpret_rhythm(
+                    features["rhythm_analysis"],
+                    note_durations=features.get("note_durations"),
+                )
             ),
         }
 

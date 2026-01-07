@@ -2,13 +2,10 @@
   "swing": {
     "field": "swing_ratio",
     "has_swing_field": "has_swing",
+    "priority_condition": "has_swing == false",
+    "priority_level": "straight",
+    "priority_description": "No swing detected. Straight, even rhythmic subdivisions.",
     "thresholds": [
-      {
-        "max": 1.1,
-        "level": "straight",
-        "description": "No swing detected. Straight, even rhythmic subdivisions.",
-        "condition": "has_swing == false"
-      },
       {
         "max": 1.3,
         "level": "light",
@@ -96,17 +93,49 @@
           "description_template": "Natural human timing, {tendency_desc}. Organic feel with subtle variations."
         },
         {
-          "max": 150,
+          "max": 120,
           "level": "loose",
           "description_template": "Loose timing, {tendency_desc}. Relaxed or intentionally imprecise."
         },
         {
+          "min": 120,
           "max": null,
           "level": "sloppy",
           "description_template": "Very loose timing, {tendency_desc}. High variation in note placement."
         }
       ]
     }
+  },
+  "rhythmic_stability": {
+    "fields": {
+      "timing_variation_ms": "micro_timing.std_deviation_ms",
+      "duration_variation_s": "note_durations.std_seconds",
+      "syncopation_ratio": "syncopation_ratio"
+    },
+    "thresholds": [
+      {
+        "max_timing_ms": 30,
+        "max_duration_std": 0.10,
+        "level": "very_stable",
+        "description": "Highly stable and controlled rhythm. Precise note placement."
+      },
+      {
+        "max_timing_ms": 80,
+        "max_duration_std": 0.20,
+        "level": "stable",
+        "description": "Mostly stable rhythm with natural human variation."
+      },
+      {
+        "max_timing_ms": 130,
+        "max_duration_std": 0.30,
+        "level": "loose",
+        "description": "Loose rhythmic control with noticeable variation."
+      },
+      {
+        "level": "chaotic",
+        "description": "Unstable or chaotic rhythm with high timing and duration variation."
+      }
+    ]
   },
   "brightness": {
     "field": "brightness_value",
@@ -141,34 +170,38 @@
   "harmonicity": {
     "harmonic_field": "harmonic_ratio",
     "percussive_field": "percussive_ratio",
-    "harmonic_thresholds": [
+    "evaluation_order": [
       {
-        "min": 0.85,
+        "name": "pure_harmonic",
+        "condition": "harmonic_ratio >= 0.85",
         "level": "pure_harmonic",
         "description": "Predominantly harmonic content. Sustained tones, melodic instruments."
       },
       {
-        "min": 0.65,
-        "max": 0.85,
-        "level": "predominantly_harmonic",
-        "description": "Predominantly harmonic with some percussive elements. Melodic focus."
-      }
-    ],
-    "percussive_thresholds": [
-      {
-        "min": 0.85,
+        "name": "pure_percussive",
+        "condition": "percussive_ratio >= 0.85",
         "level": "pure_percussive",
         "description": "Almost purely percussive. Sharp attacks, minimal sustain."
       },
       {
-        "min": 0.65,
-        "max": 0.85,
+        "name": "predominantly_harmonic",
+        "condition": "harmonic_ratio >= 0.65 and harmonic_ratio < 0.85",
+        "level": "predominantly_harmonic",
+        "description": "Predominantly harmonic with some percussive elements. Melodic focus."
+      },
+      {
+        "name": "predominantly_percussive",
+        "condition": "percussive_ratio >= 0.65 and percussive_ratio < 0.85",
         "level": "predominantly_percussive",
         "description": "Predominantly percussive content. Rhythmic, transient-heavy."
+      },
+      {
+        "name": "mixed",
+        "condition": "default",
+        "level": "mixed",
+        "description": "Mixed harmonic and percussive content. Balanced instrumentation."
       }
-    ],
-    "default_level": "mixed",
-    "default_description": "Mixed harmonic and percussive content. Balanced instrumentation."
+    ]
   },
   "sound_character": {
     "field": "zero_crossing_rate",
@@ -205,6 +238,8 @@
     ]
   },
   "tone_color_quality": {
+    "evaluation_order": "first_match",
+    "note": "Rules are evaluated in order. First matching rule is used. Default rule should be last.",
     "rules": [
       {
         "level": "sweet",
@@ -255,8 +290,8 @@
         }
       },
       {
-        "level": "bright",
-        "description": "Clear, balanced tone color.",
+        "level": "neutral",
+        "description": "Clear, balanced tone color with neutral characteristics.",
         "default": true
       }
     ]

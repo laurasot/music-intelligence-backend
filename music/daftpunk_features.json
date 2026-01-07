@@ -815,16 +815,16 @@
       "description": "Moderate syncopation. Rhythmic interest with off-beat emphasis."
     },
     "timing": {
-      "feel": "loose",
+      "feel": "sloppy",
       "mean_deviation_ms": -25.912123303427496,
       "std_deviation_ms": 149.2696150482776,
       "tendency": "ahead",
-      "description": "Loose timing, slightly ahead of the beat. Relaxed or intentionally imprecise."
+      "description": "Very loose timing, slightly ahead of the beat. High variation in note placement."
     },
     "groove": {
       "feel": "driving",
       "description": "Driving, forward-pushing rhythm. Slightly ahead of the beat, creating urgency."
     },
-    "summary": "This track features a straight eighth-note feel with moderate syncopation (93 syncopated notes) and loose, relaxed timing. The forward push creates energy and momentum."
+    "summary": "This track features a straight eighth-note feel with moderate syncopation (93 syncopated notes) and free-form timing. The forward push creates energy and momentum."
   }
 }

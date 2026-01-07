@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from config.interpretation_config import (
+    find_threshold_level,
+    get_rhythmic_stability_rules,
+    get_swing_rules,
+    get_syncopation_rules,
+    get_timing_rules,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +56,15 @@ class GrooveFeel(Enum):
     CHAOTIC = "chaotic"
 
 
+class RhythmicStabilityLevel(Enum):
+    """Classification of rhythmic stability."""
+
+    VERY_STABLE = "very_stable"
+    STABLE = "stable"
+    LOOSE = "loose"
+    CHAOTIC = "chaotic"
+
+
 @dataclass
 class SwingInterpretation:
     """Interpreted swing characteristics."""
@@ -80,6 +97,17 @@ class TimingInterpretation:
 
 
 @dataclass
+class RhythmicStabilityInterpretation:
+    """Interpreted rhythmic stability characteristics."""
+
+    level: RhythmicStabilityLevel
+    timing_variation_ms: float
+    duration_variation_s: float
+    syncopation_ratio: float
+    description: str
+
+
+@dataclass
 class RhythmInterpretation:
     """Complete rhythm interpretation with all categories."""
 
@@ -88,26 +116,27 @@ class RhythmInterpretation:
     timing: TimingInterpretation
     groove_feel: GrooveFeel
     groove_description: str
+    rhythmic_stability: RhythmicStabilityInterpretation
     summary: str
 
 
 def interpret_swing(swing_data: dict[str, Any]) -> SwingInterpretation:
     """Converts raw swing metrics into musical interpretation."""
-    ratio = swing_data.get("swing_ratio", 1.0)
-    has_swing = swing_data.get("has_swing", False)
+    rules = get_swing_rules()
+    ratio = swing_data.get(rules["field"], 1.0)
+    has_swing = swing_data.get(rules["has_swing_field"], False)
 
-    if not has_swing or ratio < 1.1:
-        level = SwingLevel.STRAIGHT
-        description = "No swing detected. Straight, even rhythmic subdivisions."
-    elif ratio < 1.3:
-        level = SwingLevel.LIGHT
-        description = "Light swing feel. Subtle rhythmic lilt."
-    elif ratio < 1.5:
-        level = SwingLevel.MODERATE
-        description = "Moderate swing. Classic jazz-like triplet feel."
+    # Check priority condition first (has_swing == false has priority)
+    if not has_swing:
+        level = SwingLevel(rules["priority_level"])
+        description = rules["priority_description"]
     else:
-        level = SwingLevel.HEAVY
-        description = "Heavy swing. Pronounced shuffle or dotted rhythm feel."
+        # Find threshold that matches the ratio
+        threshold = find_threshold_level(ratio, rules["thresholds"])
+        if threshold is None:
+            threshold = rules["thresholds"][-1]
+        level = SwingLevel(threshold["level"])
+        description = threshold["description"]
 
     logger.debug(f"Swing interpreted: {level.value} (ratio={ratio:.3f})")
 
@@ -120,25 +149,17 @@ def interpret_swing(swing_data: dict[str, Any]) -> SwingInterpretation:
 
 def interpret_syncopation(syncopation_data: dict[str, Any]) -> SyncopationInterpretation:
     """Converts raw syncopation metrics into musical interpretation."""
-    ratio = syncopation_data.get("syncopation_ratio", 0.0)
+    rules = get_syncopation_rules()
+    ratio = syncopation_data.get(rules["field"], 0.0)
     count = syncopation_data.get("syncopated_onsets_count", 0)
     total = syncopation_data.get("total_onsets", 0)
 
-    if ratio < 0.05:
-        level = SyncopationLevel.MINIMAL
-        description = "Almost no syncopation. Very straightforward, on-the-beat rhythm."
-    elif ratio < 0.15:
-        level = SyncopationLevel.LOW
-        description = "Low syncopation. Mostly on-beat with occasional off-beat accents."
-    elif ratio < 0.30:
-        level = SyncopationLevel.MODERATE
-        description = "Moderate syncopation. Rhythmic interest with off-beat emphasis."
-    elif ratio < 0.45:
-        level = SyncopationLevel.HIGH
-        description = "High syncopation. Frequent off-beat accents create rhythmic tension."
-    else:
-        level = SyncopationLevel.EXTREME
-        description = "Extreme syncopation. Heavily off-beat, complex rhythmic pattern."
+    threshold = find_threshold_level(ratio, rules["thresholds"])
+    if threshold is None:
+        threshold = rules["thresholds"][-1]
+
+    level = SyncopationLevel(threshold["level"])
+    description = threshold["description"]
 
     logger.debug(f"Syncopation interpreted: {level.value} (ratio={ratio:.3f})")
 
@@ -153,36 +174,27 @@ def interpret_syncopation(syncopation_data: dict[str, Any]) -> SyncopationInterp
 
 def interpret_micro_timing(micro_timing_data: dict[str, Any]) -> TimingInterpretation:
     """Converts raw micro-timing metrics into musical interpretation."""
+    rules = get_timing_rules()
     mean_deviation = micro_timing_data.get("mean_deviation_ms", 0.0)
     std_deviation = micro_timing_data.get("std_deviation_ms", 0.0)
 
     # Determine timing tendency (early, on-beat, or late)
-    if mean_deviation < -15:
-        tendency = "ahead"
-        tendency_desc = "slightly ahead of the beat"
-    elif mean_deviation > 15:
-        tendency = "behind"
-        tendency_desc = "slightly behind the beat (laid back)"
-    else:
-        tendency = "centered"
-        tendency_desc = "centered on the beat"
+    tendency_rules = rules["tendency"]
+    tendency_threshold = find_threshold_level(mean_deviation, tendency_rules["thresholds"])
+    if tendency_threshold is None:
+        tendency_threshold = tendency_rules["thresholds"][-1]
+
+    tendency = tendency_threshold["tendency"]
+    tendency_desc = tendency_threshold["description"]
 
     # Determine timing consistency
-    if std_deviation < 10:
-        feel = TimingFeel.MECHANICAL
-        description = f"Extremely precise timing, {tendency_desc}. Likely programmed or quantized."
-    elif std_deviation < 30:
-        feel = TimingFeel.TIGHT
-        description = f"Very tight timing, {tendency_desc}. Highly skilled or quantized performance."
-    elif std_deviation < 80:
-        feel = TimingFeel.NATURAL
-        description = f"Natural human timing, {tendency_desc}. Organic feel with subtle variations."
-    elif std_deviation < 150:
-        feel = TimingFeel.LOOSE
-        description = f"Loose timing, {tendency_desc}. Relaxed or intentionally imprecise."
-    else:
-        feel = TimingFeel.SLOPPY
-        description = f"Very loose timing, {tendency_desc}. High variation in note placement."
+    feel_rules = rules["feel"]
+    feel_threshold = find_threshold_level(std_deviation, feel_rules["thresholds"])
+    if feel_threshold is None:
+        feel_threshold = feel_rules["thresholds"][-1]
+
+    feel = TimingFeel(feel_threshold["level"])
+    description = feel_threshold["description_template"].format(tendency_desc=tendency_desc)
 
     logger.debug(
         f"Timing interpreted: {feel.value} (mean={mean_deviation:.1f}ms, std={std_deviation:.1f}ms)"
@@ -330,7 +342,69 @@ def generate_summary(
     return summary
 
 
-def interpret_rhythm(rhythm_analysis: dict[str, Any]) -> RhythmInterpretation:
+def interpret_rhythmic_stability(
+    rhythm_analysis: dict[str, Any],
+    note_durations: dict[str, Any] | None = None,
+) -> RhythmicStabilityInterpretation:
+    """Interprets rhythmic stability from timing and duration variations."""
+    rules = get_rhythmic_stability_rules()
+    fields = rules["fields"]
+
+    # Extract values using field paths
+    timing_variation_ms = rhythm_analysis.get("micro_timing", {}).get("std_deviation_ms", 0.0)
+    
+    if note_durations:
+        duration_variation_s = note_durations.get("std", 0.0)
+    else:
+        duration_variation_s = 0.0
+
+    syncopation_ratio = rhythm_analysis.get("syncopation", {}).get("syncopation_ratio", 0.0)
+
+    # Find matching threshold (evaluates both timing and duration constraints)
+    thresholds = rules["thresholds"]
+    matched_threshold = None
+
+    for threshold in thresholds:
+        max_timing = threshold.get("max_timing_ms")
+        max_duration = threshold.get("max_duration_std")
+
+        # Default threshold (chaotic) matches if no other does
+        if max_timing is None and max_duration is None:
+            matched_threshold = threshold
+            break
+
+        # Check if both constraints are met
+        timing_ok = max_timing is None or timing_variation_ms < max_timing
+        duration_ok = max_duration is None or duration_variation_s < max_duration
+
+        if timing_ok and duration_ok:
+            matched_threshold = threshold
+            break
+
+    if matched_threshold is None:
+        matched_threshold = thresholds[-1]  # Default to last (chaotic)
+
+    level = RhythmicStabilityLevel(matched_threshold["level"])
+    description = matched_threshold["description"]
+
+    logger.debug(
+        f"Rhythmic stability interpreted: {level.value} "
+        f"(timing={timing_variation_ms:.1f}ms, duration={duration_variation_s:.3f}s)"
+    )
+
+    return RhythmicStabilityInterpretation(
+        level=level,
+        timing_variation_ms=timing_variation_ms,
+        duration_variation_s=duration_variation_s,
+        syncopation_ratio=syncopation_ratio,
+        description=description,
+    )
+
+
+def interpret_rhythm(
+    rhythm_analysis: dict[str, Any],
+    note_durations: dict[str, Any] | None = None,
+) -> RhythmInterpretation:
     """Main function to interpret complete rhythm analysis data."""
     swing_data = rhythm_analysis.get("swing", {})
     syncopation_data = rhythm_analysis.get("syncopation", {})
@@ -341,9 +415,10 @@ def interpret_rhythm(rhythm_analysis: dict[str, Any]) -> RhythmInterpretation:
     timing = interpret_micro_timing(micro_timing_data)
 
     groove_feel, groove_description = determine_groove_feel(swing, syncopation, timing)
+    rhythmic_stability = interpret_rhythmic_stability(rhythm_analysis, note_durations)
     summary = generate_summary(swing, syncopation, timing, groove_feel)
 
-    logger.info(f"Rhythm interpretation complete: groove={groove_feel.value}")
+    logger.info(f"Rhythm interpretation complete: groove={groove_feel.value}, stability={rhythmic_stability.level.value}")
 
     return RhythmInterpretation(
         swing=swing,
@@ -351,6 +426,7 @@ def interpret_rhythm(rhythm_analysis: dict[str, Any]) -> RhythmInterpretation:
         timing=timing,
         groove_feel=groove_feel,
         groove_description=groove_description,
+        rhythmic_stability=rhythmic_stability,
         summary=summary,
     )
 
@@ -380,6 +456,13 @@ def rhythm_interpretation_to_dict(interpretation: RhythmInterpretation) -> dict[
         "groove": {
             "feel": interpretation.groove_feel.value,
             "description": interpretation.groove_description,
+        },
+        "rhythmic_stability": {
+            "level": interpretation.rhythmic_stability.level.value,
+            "timing_variation_ms": interpretation.rhythmic_stability.timing_variation_ms,
+            "duration_variation_s": interpretation.rhythmic_stability.duration_variation_s,
+            "syncopation_ratio": interpretation.rhythmic_stability.syncopation_ratio,
+            "description": interpretation.rhythmic_stability.description,
         },
         "summary": interpretation.summary,
     }

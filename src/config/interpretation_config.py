@@ -102,3 +102,29 @@ def get_tone_color_quality_rules() -> dict[str, Any]:
     rules = load_interpretation_rules()
     return rules["tone_color_quality"]
 
+
+def get_rhythmic_stability_rules() -> dict[str, Any]:
+    """Gets rhythmic stability interpretation rules."""
+    rules = load_interpretation_rules()
+    return rules["rhythmic_stability"]
+
+
+def eval_harmonicity_condition(
+    condition: str,
+    harmonic_ratio: float,
+    percussive_ratio: float,
+) -> bool:
+    """Evaluates a harmonicity condition string."""
+    if condition == "default":
+        return True
+
+    # Replace variable names with actual values
+    condition = condition.replace("harmonic_ratio", str(harmonic_ratio))
+    condition = condition.replace("percussive_ratio", str(percussive_ratio))
+
+    try:
+        return bool(eval(condition))
+    except Exception:
+        logger.warning(f"Error evaluating condition: {condition}")
+        return False
+

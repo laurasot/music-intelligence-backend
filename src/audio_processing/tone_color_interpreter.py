@@ -5,6 +5,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from config.interpretation_config import (
+    eval_harmonicity_condition,
+    find_threshold_level,
+    get_brightness_rules,
+    get_harmonicity_rules,
+    get_sound_character_rules,
+    get_tone_color_quality_rules,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,21 +110,13 @@ def interpret_brightness(
     spectral_density: float | None = None,
 ) -> BrightnessInterpretation:
     """Converts raw brightness metrics into musical interpretation."""
-    if brightness_value < 0.15:
-        level = BrightnessLevel.DARK
-        description = "Dark, warm tone color with energy concentrated in lower frequencies."
-    elif brightness_value < 0.25:
-        level = BrightnessLevel.WARM
-        description = "Warm, mellow tone color with balanced low-mid frequency content."
-    elif brightness_value < 0.35:
-        level = BrightnessLevel.BALANCED
-        description = "Balanced spectral distribution across frequency range."
-    elif brightness_value < 0.50:
-        level = BrightnessLevel.BRIGHT
-        description = "Bright tone color with significant energy in mid-high frequencies."
-    else:
-        level = BrightnessLevel.SHARP
-        description = "Sharp, piercing tone color with strong high-frequency emphasis."
+    rules = get_brightness_rules()
+    threshold = find_threshold_level(brightness_value, rules["thresholds"])
+    if threshold is None:
+        threshold = rules["thresholds"][-1]
+
+    level = BrightnessLevel(threshold["level"])
+    description = threshold["description"]
 
     logger.debug(f"Brightness interpreted: {level.value} (value={brightness_value:.3f})")
 
@@ -184,22 +185,18 @@ def interpret_harmonicity(
             description="Harmonic/percussive separation not available.",
         )
 
+    rules = get_harmonicity_rules()
     harmonic_ratio = harmonic_data.get("harmonic_ratio", 0.5)
     percussive_ratio = harmonic_data.get("percussive_ratio", 0.5)
 
-    if harmonic_ratio > 0.85:
-        level = HarmonicityLevel.PURE_HARMONIC
-        description = "Predominantly harmonic content. Sustained tones, melodic instruments."
-    elif harmonic_ratio > 0.65:
-        level = HarmonicityLevel.PREDOMINANTLY_HARMONIC
-        description = "Predominantly harmonic with some percussive elements. Melodic focus."
-    elif percussive_ratio > 0.65:
-        level = HarmonicityLevel.PREDOMINANTLY_PERCUSSIVE
-        description = "Predominantly percussive content. Rhythmic, transient-heavy."
-    elif percussive_ratio > 0.85:
-        level = HarmonicityLevel.PURE_PERCUSSIVE
-        description = "Almost purely percussive. Sharp attacks, minimal sustain."
+    # Evaluate rules in order (first match wins)
+    for rule in rules["evaluation_order"]:
+        if eval_harmonicity_condition(rule["condition"], harmonic_ratio, percussive_ratio):
+            level = HarmonicityLevel(rule["level"])
+            description = rule["description"]
+            break
     else:
+        # Fallback (should not happen if default rule exists)
         level = HarmonicityLevel.MIXED
         description = "Mixed harmonic and percussive content. Balanced instrumentation."
 
@@ -228,24 +225,54 @@ def interpret_sound_character(
             description="Sound character analysis not available.",
         )
 
-    # High ZCR indicates noise/distortion
-    if zero_crossing_rate > 0.15:
-        if harmonicity.level in [
-            HarmonicityLevel.PURE_PERCUSSIVE,
-            HarmonicityLevel.PREDOMINANTLY_PERCUSSIVE,
-        ]:
-            character = SoundCharacter.NOISY
-            description = "Noisy, distorted character with high zero-crossing rate."
-        else:
-            character = SoundCharacter.DISTORTED
-            description = "Distorted sound with significant noise content."
-    elif zero_crossing_rate > 0.08:
-        character = SoundCharacter.CLEAN_WITH_TEXTURE
-        description = "Clean sound with subtle texture and noise."
-    elif harmonicity.level == HarmonicityLevel.PURE_HARMONIC:
-        character = SoundCharacter.PURE
-        description = "Pure, clean harmonic sound with minimal noise."
+    rules = get_sound_character_rules()
+    thresholds = rules["thresholds"]
+    harmonicity_level_str = harmonicity.level.value
+
+    # Find matching threshold considering conditions
+    for threshold in thresholds:
+        min_val = threshold.get("min")
+        max_val = threshold.get("max")
+        condition = threshold.get("condition")
+
+        # Check value range
+        matches_range = False
+        if min_val is not None and max_val is None:
+            matches_range = zero_crossing_rate >= min_val
+        elif max_val is not None and min_val is None:
+            matches_range = zero_crossing_rate < max_val
+        elif min_val is not None and max_val is not None:
+            matches_range = min_val <= zero_crossing_rate < max_val
+
+        if matches_range:
+            # Check condition if present
+            if condition:
+                if "harmonicity_level not in" in condition:
+                    excluded_str = condition.split("[")[1].split("]")[0]
+                    excluded = [s.strip() for s in excluded_str.split(",")]
+                    if harmonicity_level_str not in excluded:
+                        character = SoundCharacter(threshold["level"])
+                        description = threshold["description"]
+                        break
+                elif "harmonicity_level in" in condition:
+                    included_str = condition.split("[")[1].split("]")[0]
+                    included = [s.strip() for s in included_str.split(",")]
+                    if harmonicity_level_str in included:
+                        character = SoundCharacter(threshold["level"])
+                        description = threshold["description"]
+                        break
+                elif "harmonicity_level ==" in condition:
+                    expected = condition.split("==")[1].strip()
+                    if harmonicity_level_str == expected:
+                        character = SoundCharacter(threshold["level"])
+                        description = threshold["description"]
+                        break
+            else:
+                character = SoundCharacter(threshold["level"])
+                description = threshold["description"]
+                break
     else:
+        # Default fallback
         character = SoundCharacter.CLEAN
         description = "Clean, clear sound with minimal distortion."
 
